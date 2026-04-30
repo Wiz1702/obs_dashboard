@@ -215,6 +215,7 @@ main {
 
 #notebook > .observablehq:has(svg),
 #notebook > .observablehq:has(.plot),
+#notebook > .observablehq:has(.chart-explanation),
 #notebook > .observablehq:has(> div[style*="grid-template-columns:repeat(5"]),
 #notebook > .observablehq:last-child {
   grid-column: 1 / -1;
@@ -315,6 +316,67 @@ main {
   margin-top: 10px;
 }
 
+.year-player {
+  display: grid;
+  gap: 10px;
+}
+
+.year-player__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.year-player__header label {
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.year-player__header output {
+  color: var(--text);
+  font-family: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.year-player__controls {
+  display: grid;
+  grid-template-columns: 38px minmax(180px, 1fr) 112px;
+  gap: 10px;
+  align-items: center;
+}
+
+.year-player button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.year-player button:hover,
+.year-player button:focus {
+  border-color: var(--accent);
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+.year-player input[type="range"] {
+  margin-top: 0 !important;
+}
+
+.year-player select {
+  margin-top: 0 !important;
+}
+
 #notebook > .observablehq:has(input[type="radio"]) {
   border-bottom: 1px solid var(--border);
   padding: 6px 0 0;
@@ -332,20 +394,32 @@ main {
 }
 
 #notebook select {
+  appearance: none;
+  -webkit-appearance: none;
   margin-top: 5px;
   border: 1px solid var(--border);
   border-radius: 6px;
   outline: none;
-  background: var(--surface-2);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--text) 50%) calc(100% - 20px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--text) 50%, transparent 50%) calc(100% - 15px) 50% / 6px 6px no-repeat,
+    linear-gradient(var(--border), var(--border)) calc(100% - 38px) 0 / 1px 100% no-repeat,
+    linear-gradient(var(--surface-3), var(--surface-3)) right / 38px 100% no-repeat,
+    var(--surface-2);
   color: var(--text);
-  padding: 6px 8px;
+  padding: 6px 46px 6px 8px;
   transition: border-color 0.2s, background 0.2s;
 }
 
 #notebook select:hover,
 #notebook select:focus {
   border-color: var(--accent);
-  background: var(--surface-3);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) calc(100% - 20px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) calc(100% - 15px) 50% / 6px 6px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) calc(100% - 38px) 0 / 1px 100% no-repeat,
+    linear-gradient(var(--surface-3), var(--surface-3)) right / 38px 100% no-repeat,
+    var(--surface-2);
 }
 
 #notebook input[type="range"] {
@@ -386,6 +460,29 @@ main {
 #notebook > .observablehq:has(input[type="radio"]) label:has(input:checked) {
   color: var(--accent);
   border-bottom: 2px solid var(--accent);
+}
+
+.chart-explanation {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  padding: 12px 14px;
+}
+
+.chart-explanation strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chart-explanation p {
+  max-width: 860px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 #notebook > .observablehq:has(svg) {
@@ -458,5 +555,13 @@ main {
 
   #notebook > .observablehq > div[style*="grid-template-columns:repeat(5"] {
     grid-template-columns: 1fr !important;
+  }
+
+  .year-player__controls {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .year-player select {
+    grid-column: 1 / -1;
   }
 }

@@ -86,11 +86,114 @@ function _adoptionFilter(Inputs, data) {
   );
 }
 
-function _yearMax(Inputs, d3, data) {
-  return Inputs.range(
-    d3.extent(data, d => d.posting_year),
-    { label: "Show years up to", step: 1, value: d3.max(data, d => d.posting_year) }
-  );
+function _yearMax(d3, data, htl) {
+  const [minYear, maxDataYear] = d3.extent(data, d => d.posting_year);
+  const endYear = Math.min(2025, maxDataYear);
+  const speedOptions = [
+    { label: "Slow", delay: 1800 },
+    { label: "Normal", delay: 1000 },
+    { label: "Fast", delay: 500 },
+  ];
+
+  let animationId = null;
+  let lastDispatch = 0;
+
+  const control = htl.html`<div class="year-player">
+    <div class="year-player__header">
+      <label for="year-player-range">Show years up to</label>
+      <output>${endYear}</output>
+    </div>
+    <div class="year-player__controls">
+      <button type="button" aria-label="Play year animation">▶</button>
+      <input id="year-player-range" type="range" min=${minYear} max=${endYear} step="0.01" value=${endYear}>
+      <select aria-label="Animation speed">
+        ${speedOptions.map((speed, index) => htl.html`<option value=${speed.delay} selected=${index === 1}>${speed.label}</option>`)}
+      </select>
+    </div>
+  </div>`;
+
+  const button = control.querySelector("button");
+  const range = control.querySelector("input");
+  const speed = control.querySelector("select");
+  const output = control.querySelector("output");
+  speed.value = String(speedOptions[1].delay);
+
+  function formatYear(value) {
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
+
+  function setYear(value, shouldDispatch = true) {
+    const nextValue = Math.min(endYear, Math.max(minYear, value));
+    range.value = nextValue.toFixed(2);
+    output.value = formatYear(nextValue);
+    if (shouldDispatch) control.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function stop() {
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = null;
+    button.textContent = "▶";
+    button.setAttribute("aria-label", "Play year animation");
+  }
+
+  function play(reset = true) {
+    if (reset) setYear(minYear);
+
+    const startYear = Number(range.value);
+    const startedAt = performance.now();
+    const duration = Math.max(1, endYear - startYear) * Number(speed.value);
+
+    button.textContent = "Ⅱ";
+    button.setAttribute("aria-label", "Pause year animation");
+
+    function animate(now) {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const finalFrame = progress >= 1;
+      const nextYear = startYear + (endYear - startYear) * progress;
+      const shouldDispatch = finalFrame || now - lastDispatch > 80;
+
+      setYear(nextYear, shouldDispatch);
+      if (shouldDispatch) lastDispatch = now;
+
+      if (finalFrame) {
+        stop();
+        return;
+      }
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    lastDispatch = 0;
+    animationId = requestAnimationFrame(animate);
+  }
+
+  button.addEventListener("click", () => {
+    if (animationId) {
+      stop();
+    } else {
+      play(true);
+    }
+  });
+
+  range.addEventListener("input", () => {
+    setYear(Number(range.value));
+    if (Number(range.value) >= endYear) stop();
+  });
+
+  speed.addEventListener("change", () => {
+    if (!animationId) return;
+    stop();
+    play(false);
+  });
+
+  Object.defineProperty(control, "value", {
+    get: () => Number(range.value),
+    set: value => {
+      setYear(value);
+    },
+  });
+
+  return control;
 }
 
 function _aiOnly(Inputs) {
@@ -102,13 +205,22 @@ function _filtered(
   data, industryFilter, seniorityFilter, sizeFilter,
   riskFilter, adoptionFilter, yearMax, aiOnly
 ) {
-  return data.filter(d =>
+  const wholeYear = Math.floor(yearMax);
+  const nextYearShare = yearMax - wholeYear;
+
+  function yearIsIncluded(d, index) {
+    if (d.posting_year <= wholeYear) return true;
+    if (d.posting_year !== wholeYear + 1 || nextYearShare <= 0) return false;
+    return (((index + 1) * 2654435761) >>> 0) / 4294967296 < nextYearShare;
+  }
+
+  return data.filter((d, index) =>
     (industryFilter === "All" || d.industry === industryFilter) &&
     (seniorityFilter === "All" || d.seniority_level === seniorityFilter) &&
     (sizeFilter === "All" || d.company_size === sizeFilter) &&
     (riskFilter === "All" || d.ai_job_displacement_risk === riskFilter) &&
     (adoptionFilter === "All" || d.industry_ai_adoption_stage === adoptionFilter) &&
-    d.posting_year <= yearMax &&
+    yearIsIncluded(d, index) &&
     (!aiOnly || d.ai_mentioned === true)
   );
 }
@@ -182,13 +294,52 @@ function _tabVariable(Inputs, activeTab) {
   return Inputs.select(choices, { label: "Chart", value: choices[0] });
 }
 
-// ── 8. Main chart dispatcher ───────────────────────────────────────────────────
+// ── 8. Chart explanation ──────────────────────────────────────────────────────
+function _chartExplanation(tabVariable, htl) {
+  const explanations = {
+    "AI mention rate over time":
+      "Shows the share of job postings that mention AI each year. Use it to see whether AI language is becoming more common in the filtered job market.",
+    "Year-over-year salary change by industry":
+      "Compares average annual salary growth across industries. Lines above zero indicate rising salaries; lines below zero indicate declines for the selected filters.",
+    "Automation risk heatmap":
+      "Highlights where average automation risk is concentrated across industries and seniority levels. Darker/high-risk cells point to groups more exposed to automation pressure.",
+    "AI intensity score by industry":
+      "Ranks industries by their average AI intensity score. Higher bars indicate roles where AI-related skills, tasks, or exposure are more prominent.",
+    "AI intensity by seniority (box plot)":
+      "Compares the distribution of AI intensity across seniority levels. Wider boxes and longer whiskers mean more variation among jobs at that level.",
+    "Country AI index vs. salary":
+      "Plots salaries against each country's AI index score. The trend line helps show whether higher national AI readiness is associated with higher advertised pay.",
+    "Salary vs. automation risk (scatter)":
+      "Each point is a sampled job posting, positioned by salary and automation risk. The trend line summarizes whether risk tends to rise or fall with pay.",
+    "Avg salary — seniority × company size":
+      "Compares average salaries within each seniority level across company sizes. Use it to spot where company scale appears to change compensation most.",
+    "Displacement risk breakdown by industry":
+      "Shows how many jobs in each industry fall into low, medium, or high displacement-risk groups. Longer red segments indicate more high-risk postings.",
+    "% requiring reskilling by adoption stage":
+      "Shows the share of jobs requiring reskilling at each AI adoption stage. Higher bars suggest that adoption is creating more explicit retraining needs.",
+    "Correlation matrix":
+      "Summarizes pairwise relationships between the key numeric variables. Blue positive values move together, red negative values move in opposite directions, and values near zero are weak relationships.",
+  };
+
+  return htl.html`<div class="chart-explanation">
+    <strong>How to read this chart</strong>
+    <p>${explanations[tabVariable] || "Select a chart to see a short reading guide."}</p>
+  </div>`;
+}
+
+// ── 9. Main chart dispatcher ───────────────────────────────────────────────────
 function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
   if (!filtered.length) {
     return htl.html`<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px">
       ⚠️ No data matches the current filters. Try relaxing some selections.
     </div>`;
   }
+
+  const plotLayout = {
+    marginTop: 44,
+    marginRight: 96,
+    marginBottom: 56,
+  };
 
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
@@ -219,23 +370,41 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const byYearIndustry = d3.rollups(
         filtered,
         v => d3.mean(v, d => d.salary_change),
-        d => d.posting_year,
-        d => d.industry
-      ).flatMap(([year, inds]) => inds.map(([industry, avg]) => ({ year, industry, avg })));
+        d => d.industry,
+        d => d.posting_year
+      ).flatMap(([industry, years]) =>
+        years
+          .sort(([a], [b]) => d3.ascending(a, b))
+          .map(([year, avg]) => ({ year, industry, avg }))
+      );
 
       return Plot.plot({
-        title: "Year-over-year salary change % by industry",
-        width: 900, height: 360,
+        title: "Average year-over-year salary change by industry",
+        ...plotLayout,
+        width: 900, height: 420,
+        marginRight: 120,
         x: { label: "Year", tickFormat: d3.format("d") },
-        y: { label: "Avg YoY salary change (%)" },
+        y: { label: "Avg YoY salary change (%)", grid: true },
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
-            x: "year", y: "avg", stroke: "industry",
-            strokeWidth: 2, curve: "monotone-x",
+            x: "year",
+            y: "avg",
+            stroke: "industry",
+            strokeWidth: 2,
+            strokeOpacity: 0.75,
+            z: "industry",
             title: d => `${d.industry} ${d.year}: ${d.avg.toFixed(1)}%`,
           }),
-          Plot.ruleY([0], { stroke: "#ccc", strokeDasharray: "4,3" }),
+          Plot.dot(byYearIndustry, {
+            x: "year",
+            y: "avg",
+            fill: "industry",
+            r: 2,
+            opacity: 0.7,
+            title: d => `${d.industry} ${d.year}: ${d.avg.toFixed(1)}%`,
+          }),
+          Plot.ruleY([0]),
         ],
       });
     }
@@ -484,7 +653,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       ];
 
       function pearson(arr, ka, kb) {
-        const rows = arr.filter(d => d[ka] && d[kb]);
+        const rows = arr.filter(d => Number.isFinite(d[ka]) && Number.isFinite(d[kb]));
         const ma = d3.mean(rows, d => d[ka]);
         const mb = d3.mean(rows, d => d[kb]);
         const num = d3.sum(rows, d => (d[ka] - ma) * (d[kb] - mb));
@@ -508,8 +677,10 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         marginLeft: 110, marginBottom: 90,
         x: { tickRotate: -35 },
         color: {
+          type: "linear",
           domain: [-1, 0, 1],
-          range: ["#e53935", "#fff", "#3266ad"],
+          range: ["#dc2626", "#f8fafc", "#2563eb"],
+          clamp: true,
           legend: true,
           label: "Pearson r",
         },
@@ -529,7 +700,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
   return htl.html`<div style="padding:40px;text-align:center;color:#9ca3af">Select a view above.</div>`;
 }
 
-// ── 9. Navigation hint ────────────────────────────────────────────────────────
+// ── 10. Navigation hint ───────────────────────────────────────────────────────
 function _hint(activeTab, tabVariable, htl) {
   const tabMap = {
     "📊 Overview":    3,
@@ -594,7 +765,7 @@ export default function define(runtime, observer) {
   main.variable(observer("viewof adoptionFilter")).define("viewof adoptionFilter", ["Inputs", "data"], _adoptionFilter);
   main.variable(observer("adoptionFilter")).define("adoptionFilter", ["Generators", "viewof adoptionFilter"], (G, _) => G.input(_));
 
-  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["Inputs", "d3", "data"], _yearMax);
+  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
   main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
 
   main.variable(observer("viewof aiOnly")).define("viewof aiOnly", ["Inputs"], _aiOnly);
@@ -617,6 +788,9 @@ export default function define(runtime, observer) {
   // Per-tab variable selector (reacts to activeTab)
   main.variable(observer("viewof tabVariable")).define("viewof tabVariable", ["Inputs", "activeTab"], _tabVariable);
   main.variable(observer("tabVariable")).define("tabVariable", ["Generators", "viewof tabVariable"], (G, _) => G.input(_));
+
+  // Chart explanation
+  main.variable(observer()).define(["tabVariable", "htl"], _chartExplanation);
 
   // Chart output (reacts to both selectors + filtered)
   main.variable(observer()).define(
