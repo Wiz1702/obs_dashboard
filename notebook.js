@@ -601,7 +601,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         title: "AI intensity score by seniority level",
         width: 720, height: 340,
         x: { label: "Seniority level", domain: seniorityOrder },
-        y: { label: "AI intensity score", domain: [0, 0.5] },
+        y: { label: "AI intensity score", domain: [0, 1] },
         color: { scheme: "blues" },
         marks: [
           Plot.boxY(filtered, {
@@ -635,7 +635,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         width: 900, height: 420,
         marginRight: 120,
         x: {label: "Year", tickFormat: d3.format("d"), domain: [2010, 2025]},
-        y: {label: "Avg YoY salary change (%)", grid: true, domain: [-5, 15]},
+        y: {label: "Avg YoY salary change (%)", grid: true, domain: [-2, 12]},
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
@@ -666,7 +666,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         title: "Country AI index score vs. job salary",
         width: 820, height: 400, marginLeft: 100,
         x: { label: "Country AI index total score" },
-        y: {label: "Salary (USD)",domain: [0, 500000]},
+        y: {label: "Salary (USD)",domain: [0, 200000]},
         color: { legend: true, label: "Income group" },
         marks: [
           Plot.dot(withIndex, {
@@ -687,7 +687,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Salary vs. automation risk score",
         width: 820, height: 400,  marginLeft: 100,
-        x: { label: "Automation risk score (0–1)" },
+        x: { label: "Automation risk score (0–1)",domain: [0, 1]},
         y: { label: "Salary (USD)",domain: [0, 200000]},
         color: { legend: true, label: "Displacement risk" },
         marks: [
