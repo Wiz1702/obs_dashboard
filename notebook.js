@@ -794,6 +794,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         marginLeft: 120,
         x: { type: "band", label: "Seniority level", domain: seniorityOrder },
         color: { scheme: "RdYlGn", reverse: true, legend: true, label: "Avg automation risk" },
+        color: {scheme: "RdYlGn", reverse: true,domain: [-1, 1],  legend: true, label: "Avg automation risk"},
         marks: [
           Plot.cell(orderedHeatData, {
             x: "seniority", y: "industry", fill: "avg", inset: 0.5,
