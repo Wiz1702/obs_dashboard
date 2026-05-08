@@ -531,30 +531,32 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
 
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
-
     if (tabVariable === "AI mention rate over time") {
-      const byYear = d3.rollups(
-        filtered,
-        v => d3.mean(v, d => d.ai_mentioned ? 1 : 0) * 100,
-        d => d.posting_year
-      ).map(([year, pct]) => ({ year, pct })).sort((a, b) => a.year - b.year);
 
-      return Plot.plot({
-        title: "AI mention rate in job postings over time",
-        width: 900, height: 280,
-        x: { label: "Year", tickFormat: d3.format("d") },
-        y: { label: "% of postings mentioning AI", domain: [0, 100] },
-        marks: [
-          Plot.areaY(byYear, { x: "year", y: "pct", fill: "#3266ad", fillOpacity: 0.1, curve: "monotone-x" }),
-          Plot.lineY(byYear, { x: "year", y: "pct", stroke: "#3266ad", strokeWidth: 2.5, curve: "monotone-x" }),
-          Plot.dot(byYear, { x: "year", y: "pct", fill: "#3266ad", r: 5, title: d => `${d.year}: ${d.pct.toFixed(1)}%` }),
-          Plot.text(byYear, { x: "year", y: "pct", text: d => d.pct.toFixed(1) + "%", dy: -14, fontSize: 11, fill: "#3266ad" }),
-          Plot.ruleY([0], { stroke: "#e5e7eb" }),
-        ],
-      });
-    }
+    const byYear = d3.rollups(filtered,v => d3.mean(v, d => d.ai_mentioned ? 1 : 0) * 100, d => d.posting_year)
+    .map(([year, pct]) => ({ year, pct }))
+    .sort((a, b) => a.year - b.year);
 
+    const yearDomain = d3.extent(data, d => d.posting_year);
+    return Plot.plot({
+      title: "AI mention rate in job postings over time",
+      width: 900,
+      height: 280,
+
+      x: {label: "Year", tickFormat: d3.format("d"),domain: yearDomain},
+
+      y: {label: "% of postings mentioning AI",domain: [0, 100]},
+
+      marks: [
+        Plot.areaY(byYear, { x: "year", y: "pct", fill: "#3266ad", fillOpacity: 0.1, curve: "monotone-x" }),
+        Plot.lineY(byYear, { x: "year", y: "pct", stroke: "#3266ad", strokeWidth: 2.5, curve: "monotone-x" }),
+        Plot.dot(byYear, { x: "year", y: "pct", fill: "#3266ad", r: 5, title: d => `${d.year}: ${d.pct.toFixed(1)}%` }),
+        Plot.text(byYear, { x: "year", y: "pct", text: d => d.pct.toFixed(1) + "%", dy: -14, fontSize: 11, fill: "#3266ad" }),
+        Plot.ruleY([0], { stroke: "#e5e7eb" })
+      ]
+    });
   }
+
 
   // ── AI Adoption charts ─────────────────────────────────────────────────────
   if (activeTab === "🤖 AI Adoption") {
@@ -565,13 +567,14 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         v => d3.mean(v, d => d.ai_intensity_score),
         d => d.industry
       ).map(([industry, avg]) => ({ industry, avg }));
+      const industryDomain = Array.from(new Set(data.map(d => d.industry))).sort();
 
       return Plot.plot({
         title: "Average AI intensity score by industry",
         width: 720, height: 320,
         marginLeft: 120,
-        x: { label: "Avg AI intensity score", domain: [0, 1] },
-        y: { label: null },
+        x: { label: "Avg AI intensity score", domain: [0, 0.5] },
+        y: {label: null, domain: industryDomain},
         color: { scheme: "blues" },
         marks: [
           Plot.barX(byIndustry, {
@@ -590,12 +593,12 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
     }
 
     if (tabVariable === "AI intensity by seniority (box plot)") {
-      const seniorityOrder = _orderedSeniorityLevels(filtered);
+      const seniorityOrder = _orderedSeniorityLevels(data);
       return Plot.plot({
         title: "AI intensity score by seniority level",
         width: 720, height: 340,
         x: { label: "Seniority level", domain: seniorityOrder },
-        y: { label: "AI intensity score", domain: [0, 1] },
+        y: { label: "AI intensity score", domain: [0, 0.5] },
         color: { scheme: "blues" },
         marks: [
           Plot.boxY(filtered, {
@@ -628,8 +631,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         ...plotLayout,
         width: 900, height: 420,
         marginRight: 120,
-        x: { label: "Year", tickFormat: d3.format("d") },
-        y: { label: "Avg YoY salary change (%)", grid: true },
+        x: {label: "Year", tickFormat: d3.format("d"), domain: [2010, 2025]},
+        y: {label: "Avg YoY salary change (%)", grid: true, domain: [-5, 15]},
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
@@ -658,9 +661,9 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const withIndex = filtered.filter(d => d.ai_index_score && d.ai_index_score > 0);
       return Plot.plot({
         title: "Country AI index score vs. job salary",
-        width: 820, height: 400,
+        width: 820, height: 400, marginLeft: 120,
         x: { label: "Country AI index total score" },
-        y: { label: "Salary (USD)" },
+        y: {label: "Salary (USD)",domain: [0, 500000]},
         color: { legend: true, label: "Income group" },
         marks: [
           Plot.dot(withIndex, {
@@ -716,6 +719,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         width: 820, height: 420,
         marginLeft: 100,
         x: { label: "Avg salary (USD)" },
+        x: {label: "Avg salary (USD)", domain: [0, 75000]},
         y: { label: null, domain: sizeOrder },
         color: { legend: true, label: "Company size" },
         facet: { data: bySenioritySize, y: "seniority", label: null },
@@ -808,16 +812,18 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
   // ── Reskilling chart ───────────────────────────────────────────────────────
   if (activeTab === "🎓 Reskilling") {
     if (tabVariable === "% requiring reskilling by adoption stage") {
-      const byStage = d3.rollups(
-        filtered,
-        v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
-        d => d.industry_ai_adoption_stage
-      ).map(([stage, pct]) => ({ stage, pct }));
+
+      const stageOrder = ["Emerging", "Growing", "Mature"];
+      const raw = d3.rollups( filtered,v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
+      d => d.industry_ai_adoption_stage);
+      const map = new Map(raw.map(([stage, pct]) => [stage, pct]));
+      const byStage = stageOrder.map(stage => ({ stage, pct: map.get(stage) ?? 0 }));
+
 
       return Plot.plot({
         title: "% of jobs requiring reskilling by AI adoption stage",
         width: 540, height: 300,
-        x: { label: "AI adoption stage" },
+        x: { label: "AI adoption stage", domain: stageOrder },
         y: { label: "% requiring reskilling", domain: [0, 100] },
         color: { scheme: "purples" },
         marks: [
