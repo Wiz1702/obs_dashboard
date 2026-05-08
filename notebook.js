@@ -547,7 +547,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       width: 900,
       height: 280,
 
-      x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
+      x: { label: "Year", tickFormat: d3.format("d"),domain: [2010, 2025]},
       y: { label: "% of postings mentioning AI", domain: [0, 100] },
 
       marks: [
@@ -570,7 +570,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         v => d3.mean(v, d => d.ai_intensity_score),
         d => d.industry
       ).map(([industry, avg]) => ({ industry, avg }));
-      const industryDomain = Array.from(new Set(data.map(d => d.industry))).sort();
+      const industryDomain = Array.from(new Set(filtered.map(d => d.industry))).sort();
 
       return Plot.plot({
         title: "Average AI intensity score by industry",
@@ -596,7 +596,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
     }
 
     if (tabVariable === "AI intensity by seniority (box plot)") {
-      const seniorityOrder = _orderedSeniorityLevels(data);
+      const seniorityOrder = _orderedSeniorityLevels(filtered);
       return Plot.plot({
         title: "AI intensity score by seniority level",
         width: 720, height: 340,
@@ -664,7 +664,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const withIndex = filtered.filter(d => d.ai_index_score && d.ai_index_score > 0);
       return Plot.plot({
         title: "Country AI index score vs. job salary",
-        width: 820, height: 400, marginLeft: 120,
+        width: 820, height: 400, marginLeft: 100,
         x: { label: "Country AI index total score" },
         y: {label: "Salary (USD)",domain: [0, 500000]},
         color: { legend: true, label: "Income group" },
@@ -686,9 +686,9 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const sample = filtered.filter((_, i) => i % 3 === 0);
       return Plot.plot({
         title: "Salary vs. automation risk score",
-        width: 820, height: 400,
+        width: 820, height: 400,  marginLeft: 100,
         x: { label: "Automation risk score (0–1)" },
-        y: { label: "Salary (USD)" },
+        y: { label: "Salary (USD)",domain: [0, 200000]},
         color: { legend: true, label: "Displacement risk" },
         marks: [
           Plot.dot(sample, {
