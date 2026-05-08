@@ -531,21 +531,25 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
 
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
-    if (tabVariable === "AI mention rate over time") {
+  if (tabVariable === "AI mention rate over time") {
 
-    const byYear = d3.rollups(filtered,v => d3.mean(v, d => d.ai_mentioned ? 1 : 0) * 100, d => d.posting_year)
+    const byYear = d3.rollups(
+      filtered,
+      v => d3.mean(v, d => d.ai_mentioned ? 1 : 0) * 100,
+      d => d.posting_year
+    )
     .map(([year, pct]) => ({ year, pct }))
     .sort((a, b) => a.year - b.year);
 
     const yearDomain = d3.extent(data, d => d.posting_year);
+
     return Plot.plot({
       title: "AI mention rate in job postings over time",
       width: 900,
       height: 280,
 
-      x: {label: "Year", tickFormat: d3.format("d"),domain: yearDomain},
-
-      y: {label: "% of postings mentioning AI",domain: [0, 100]},
+      x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
+      y: { label: "% of postings mentioning AI", domain: [0, 100] },
 
       marks: [
         Plot.areaY(byYear, { x: "year", y: "pct", fill: "#3266ad", fillOpacity: 0.1, curve: "monotone-x" }),
@@ -556,7 +560,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       ]
     });
   }
-
+}
 
   // ── AI Adoption charts ─────────────────────────────────────────────────────
   if (activeTab === "🤖 AI Adoption") {
@@ -718,7 +722,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         title: "Average salary — seniority × company size",
         width: 820, height: 420,
         marginLeft: 100,
-        x: { label: "Avg salary (USD)" },
         x: {label: "Avg salary (USD)", domain: [0, 75000]},
         y: { label: null, domain: sizeOrder },
         color: { legend: true, label: "Company size" },
@@ -793,7 +796,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         width: 720, height: 320,
         marginLeft: 120,
         x: { type: "band", label: "Seniority level", domain: seniorityOrder },
-        color: { scheme: "RdYlGn", reverse: true, legend: true, label: "Avg automation risk" },
         color: {scheme: "RdYlGn", reverse: true,domain: [-1, 1],  legend: true, label: "Avg automation risk"},
         marks: [
           Plot.cell(orderedHeatData, {
