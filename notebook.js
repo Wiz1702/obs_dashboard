@@ -532,7 +532,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
   if (tabVariable === "AI mention rate over time") {
-
     const byYear = d3.rollups(
       filtered,
       v => d3.mean(v, d => d.ai_mentioned ? 1 : 0) * 100,
@@ -541,7 +540,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
     .map(([year, pct]) => ({ year, pct }))
     .sort((a, b) => a.year - b.year);
 
-    const yearDomain = d3.extent(data, d => d.posting_year);
+    const yearDomain = d3.extent(filtered, d => d.posting_year);
 
     return Plot.plot({
       title: "AI mention rate in job postings over time",
