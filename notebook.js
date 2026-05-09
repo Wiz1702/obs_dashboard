@@ -635,7 +635,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         width: 900, height: 420,
         marginRight: 120,
         x: {label: "Year", tickFormat: d3.format("d"), domain: [2010, 2025]},
-        y: {label: "Avg YoY salary change (%)", grid: true, domain: [-2, 12]},
+        y: {label: "Avg YoY salary change (%)", grid: true, domain: [-3, 13]},
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
