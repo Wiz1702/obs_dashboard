@@ -516,12 +516,23 @@ function _chartExplanation(tabVariable, htl) {
 }
 
 // ── 9. Main chart dispatcher ───────────────────────────────────────────────────
-function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
+function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
   if (!filtered.length) {
     return htl.html`<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px">
       ⚠️ No data matches the current filters. Try relaxing some selections.
     </div>`;
   }
+
+  const [minYear, maxYear] = d3.extent(data, d => d.posting_year);
+  const yearDomain = [minYear, Math.min(2025, maxYear)];
+  const salaryDomain = [0, Math.ceil((d3.max(data, d => d.salary_usd) || 0) * 1.05)];
+  const salaryChangeExtent = d3.extent(data, d => d.salary_change).map(v => Number.isFinite(v) ? v : 0);
+  const salaryChangeDomain = (() => {
+    const [minChange = 0, maxChange = 0] = salaryChangeExtent;
+    const padding = Math.max(2, (maxChange - minChange) * 0.1);
+    return [Math.floor(minChange - padding), Math.ceil(maxChange + padding)];
+  })();
+  const aiIndexDomain = [0, Math.ceil(d3.max(data, d => d.ai_index_score) || 100)];
 
   const plotLayout = {
     marginTop: 44,
@@ -542,7 +553,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "AI mention rate in job postings over time",
         width: 900, height: 280,
-        x: { label: "Year", tickFormat: d3.format("d") },
+        x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
         y: { label: "% of postings mentioning AI", domain: [0, 100] },
         marks: [
           Plot.areaY(byYear, { x: "year", y: "pct", fill: "#3266ad", fillOpacity: 0.1, curve: "monotone-x" }),
@@ -628,8 +639,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         ...plotLayout,
         width: 900, height: 420,
         marginRight: 120,
-        x: { label: "Year", tickFormat: d3.format("d") },
-        y: { label: "Avg YoY salary change (%)", grid: true },
+        x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
+        y: { label: "Avg YoY salary change (%)", grid: true, domain: salaryChangeDomain },
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
@@ -659,8 +670,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Country AI index score vs. job salary",
         width: 820, height: 400,
-        x: { label: "Country AI index total score" },
-        y: { label: "Salary (USD)" },
+        x: { label: "Country AI index total score", domain: aiIndexDomain },
+        y: { label: "Salary (USD)", domain: salaryDomain },
         color: { legend: true, label: "Income group" },
         marks: [
           Plot.dot(withIndex, {
@@ -681,8 +692,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Salary vs. automation risk score",
         width: 820, height: 400,
-        x: { label: "Automation risk score (0–1)" },
-        y: { label: "Salary (USD)" },
+        x: { label: "Automation risk score (0–1)", domain: [0, 1] },
+        y: { label: "Salary (USD)", domain: salaryDomain },
         color: { legend: true, label: "Displacement risk" },
         marks: [
           Plot.dot(sample, {
@@ -715,7 +726,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         title: "Average salary — seniority × company size",
         width: 820, height: 420,
         marginLeft: 100,
-        x: { label: "Avg salary (USD)" },
+        x: { label: "Avg salary (USD)", domain: salaryDomain },
         y: { label: null, domain: sizeOrder },
         color: { legend: true, label: "Company size" },
         facet: { data: bySenioritySize, y: "seniority", label: null },
@@ -969,7 +980,7 @@ export default function define(runtime, observer) {
 
   // Chart output (reacts to both selectors + filtered)
   main.variable(observer()).define(
-    ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl"],
+    ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl", "data"],
     _chart
   );
 
