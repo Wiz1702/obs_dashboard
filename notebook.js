@@ -542,7 +542,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
 
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
-
     if (tabVariable === "AI mention rate over time") {
       const byYear = d3.rollups(
         filtered,
@@ -552,7 +551,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
 
       return Plot.plot({
         title: "AI mention rate in job postings over time",
-        width: 900, height: 280,
+        width: 900,
+        height: 280,
         x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
         y: { label: "% of postings mentioning AI", domain: [0, 100] },
         marks: [
@@ -564,7 +564,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
         ],
       });
     }
-
   }
 
   // ── AI Adoption charts ─────────────────────────────────────────────────────
@@ -576,13 +575,14 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
         v => d3.mean(v, d => d.ai_intensity_score),
         d => d.industry
       ).map(([industry, avg]) => ({ industry, avg }));
+      const industryDomain = Array.from(new Set(filtered.map(d => d.industry))).sort();
 
       return Plot.plot({
         title: "Average AI intensity score by industry",
         width: 720, height: 320,
         marginLeft: 120,
-        x: { label: "Avg AI intensity score", domain: [0, 1] },
-        y: { label: null },
+        x: { label: "Avg AI intensity score", domain: [0, 0.5] },
+        y: {label: null, domain: industryDomain},
         color: { scheme: "blues" },
         marks: [
           Plot.barX(byIndustry, {
@@ -800,7 +800,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
         width: 720, height: 320,
         marginLeft: 120,
         x: { type: "band", label: "Seniority level", domain: seniorityOrder },
-        color: { scheme: "RdYlGn", reverse: true, legend: true, label: "Avg automation risk" },
+        color: {scheme: "RdYlGn", reverse: true,domain: [-1, 1],  legend: true, label: "Avg automation risk"},
         marks: [
           Plot.cell(orderedHeatData, {
             x: "seniority", y: "industry", fill: "avg", inset: 0.5,
@@ -819,16 +819,18 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
   // ── Reskilling chart ───────────────────────────────────────────────────────
   if (activeTab === "🎓 Reskilling") {
     if (tabVariable === "% requiring reskilling by adoption stage") {
-      const byStage = d3.rollups(
-        filtered,
-        v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
-        d => d.industry_ai_adoption_stage
-      ).map(([stage, pct]) => ({ stage, pct }));
+
+      const stageOrder = ["Emerging", "Growing", "Mature"];
+      const raw = d3.rollups( filtered,v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
+      d => d.industry_ai_adoption_stage);
+      const map = new Map(raw.map(([stage, pct]) => [stage, pct]));
+      const byStage = stageOrder.map(stage => ({ stage, pct: map.get(stage) ?? 0 }));
+
 
       return Plot.plot({
         title: "% of jobs requiring reskilling by AI adoption stage",
         width: 540, height: 300,
-        x: { label: "AI adoption stage" },
+        x: { label: "AI adoption stage", domain: stageOrder },
         y: { label: "% requiring reskilling", domain: [0, 100] },
         color: { scheme: "purples" },
         marks: [
