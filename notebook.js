@@ -49,22 +49,25 @@ function _orderedSeniorityLevels(rows, key = "seniority_level") {
   return [...ordered, ...extra];
 }
 
-function _filterPanel(Inputs, data, htl) {
-  const container = htl.html`<div style="
-    background:#f8f9ff;
-    border:1px solid #dde3f5;
-    border-radius:12px;
-    padding:16px 20px;
-    margin:12px 0;
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
-    gap:10px 16px;
-  ">
-    <div style="grid-column:1/-1;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
-      🔽 Global Filters — applied to every chart
-    </div>
-  </div>`;
-  return container;
+function _filterPanel(industryFilter, seniorityFilter, sizeFilter, riskFilter, adoptionFilter, htl) {
+  const row = htl.html`<div class="filter-row"></div>`;
+  row.classList.add("filter-row--global");
+
+  const filters = [industryFilter, seniorityFilter, sizeFilter, riskFilter, adoptionFilter];
+  filters.forEach(filter => {
+    const originalCell = filter.closest(".observablehq");
+    filter.classList.add("filter-panel__item");
+    row.append(filter);
+    if (originalCell && !originalCell.contains(row)) {
+      originalCell.style.display = "none";
+    }
+  });
+
+  requestAnimationFrame(() => {
+    row.closest(".observablehq")?.classList.add("filter-panel-cell");
+  });
+
+  return row;
 }
 
 function _multiSelectFilter(label, values, htl, compare = (a, b) => String(a).localeCompare(String(b))) {
@@ -956,8 +959,11 @@ export default function define(runtime, observer) {
   main.variable(observer("viewof adoptionFilter")).define("viewof adoptionFilter", ["data", "htl"], _adoptionFilter);
   main.variable(observer("adoptionFilter")).define("adoptionFilter", ["Generators", "viewof adoptionFilter"], (G, _) => G.input(_));
 
-  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
-  main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
+  main.variable(observer("viewof filters")).define(
+    "viewof filters",
+    ["viewof industryFilter", "viewof seniorityFilter", "viewof sizeFilter", "viewof riskFilter", "viewof adoptionFilter", "htl"],
+    _filterPanel
+  );
 
   // Filtered data
   main.variable(observer("filtered")).define(
@@ -985,6 +991,9 @@ export default function define(runtime, observer) {
     ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl", "data"],
     _chart
   );
+
+  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
+  main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
 
   // Navigation hint
   main.variable(observer()).define(["storyStep", "htl"], _hint);
