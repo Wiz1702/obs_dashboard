@@ -527,6 +527,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
     marginTop: 44,
     marginRight: 96,
     marginBottom: 56,
+    marginLeft: 84,
   };
 
   // ── Overview charts ────────────────────────────────────────────────────────
@@ -541,6 +542,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
 
       return Plot.plot({
         title: "AI mention rate in job postings over time",
+        ...plotLayout,
         width: 900, height: 280,
         x: { label: "Year", tickFormat: d3.format("d") },
         y: { label: "% of postings mentioning AI", domain: [0, 100] },
@@ -569,7 +571,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Average AI intensity score by industry",
         width: 720, height: 320,
-        marginLeft: 120,
+        marginLeft: 156,
         x: { label: "Avg AI intensity score", domain: [0, 1] },
         y: { label: null },
         color: { scheme: "blues" },
@@ -593,6 +595,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const seniorityOrder = _orderedSeniorityLevels(filtered);
       return Plot.plot({
         title: "AI intensity score by seniority level",
+        ...plotLayout,
         width: 720, height: 340,
         x: { label: "Seniority level", domain: seniorityOrder },
         y: { label: "AI intensity score", domain: [0, 1] },
@@ -658,6 +661,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const withIndex = filtered.filter(d => d.ai_index_score && d.ai_index_score > 0);
       return Plot.plot({
         title: "Country AI index score vs. job salary",
+        ...plotLayout,
         width: 820, height: 400,
         x: { label: "Country AI index total score" },
         y: { label: "Salary (USD)" },
@@ -680,6 +684,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const sample = filtered.filter((_, i) => i % 3 === 0);
       return Plot.plot({
         title: "Salary vs. automation risk score",
+        ...plotLayout,
         width: 820, height: 400,
         x: { label: "Automation risk score (0–1)" },
         y: { label: "Salary (USD)" },
@@ -714,7 +719,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Average salary — seniority × company size",
         width: 820, height: 420,
-        marginLeft: 100,
+        marginLeft: 122,
         x: { label: "Avg salary (USD)" },
         y: { label: null, domain: sizeOrder },
         color: { legend: true, label: "Company size" },
@@ -752,7 +757,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Displacement risk breakdown by industry",
         width: 800, height: 300,
-        marginLeft: 110,
+        marginLeft: 156,
         x: { label: "% of jobs", domain: [0, 100], grid: true },
         y: { label: null },
         color: {
@@ -787,7 +792,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Automation risk heatmap — industry × seniority",
         width: 720, height: 320,
-        marginLeft: 120,
+        marginLeft: 156,
         x: { type: "band", label: "Seniority level", domain: seniorityOrder },
         color: { scheme: "RdYlGn", reverse: true, legend: true, label: "Avg automation risk" },
         marks: [
@@ -816,6 +821,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
 
       return Plot.plot({
         title: "% of jobs requiring reskilling by AI adoption stage",
+        ...plotLayout,
         width: 540, height: 300,
         x: { label: "AI adoption stage" },
         y: { label: "% requiring reskilling", domain: [0, 100] },
@@ -869,7 +875,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Correlation matrix — key numeric variables",
         width: 540, height: 540,
-        marginLeft: 110, marginBottom: 90,
+        marginLeft: 122, marginBottom: 90,
         x: { tickRotate: -35 },
         color: {
           type: "linear",
