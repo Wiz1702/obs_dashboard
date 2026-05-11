@@ -49,22 +49,17 @@ function _orderedSeniorityLevels(rows, key = "seniority_level") {
   return [...ordered, ...extra];
 }
 
-function _filterPanel(Inputs, data, htl) {
-  const container = htl.html`<div style="
-    background:#f8f9ff;
-    border:1px solid #dde3f5;
-    border-radius:12px;
-    padding:16px 20px;
-    margin:12px 0;
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
-    gap:10px 16px;
-  ">
-    <div style="grid-column:1/-1;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
-      🔽 Global Filters — applied to every chart
+function _filterPanel(industryFilter, seniorityFilter, sizeFilter, riskFilter, adoptionFilter, htl) {   
+  return htl.html`<details class="advanced-filters">
+    <summary>Advanced filters</summary>
+    <div class="advanced-filters__grid">
+      ${industryFilter}
+      ${seniorityFilter}
+      ${sizeFilter}
+      ${riskFilter}
+      ${adoptionFilter}
     </div>
-  </div>`;
-  return container;
+  </details>`;
 }
 
 function _multiSelectFilter(label, values, htl, compare = (a, b) => String(a).localeCompare(String(b))) {
@@ -943,7 +938,13 @@ export default function define(runtime, observer) {
   main.variable(observer("viewof adoptionFilter")).define("viewof adoptionFilter", ["data", "htl"], _adoptionFilter);
   main.variable(observer("adoptionFilter")).define("adoptionFilter", ["Generators", "viewof adoptionFilter"], (G, _) => G.input(_));
 
-  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
+  // Advanced filters panel
+  main.variable(observer()).define(
+    ["viewof industryFilter", "viewof seniorityFilter", "viewof sizeFilter", "viewof riskFilter", "viewof adoptionFilter", "htl"],
+    _filterPanel
+  );
+  
+  main.variable(observer()).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
   main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
 
   // Filtered data
@@ -972,6 +973,9 @@ export default function define(runtime, observer) {
     ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl"],
     _chart
   );
+
+  // Show year slider below chart
+  main.variable(observer()).define(["viewof yearMax"], yearMax => yearMax);
 
   // Navigation hint
   main.variable(observer()).define(["storyStep", "htl"], _hint);
