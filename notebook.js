@@ -49,22 +49,25 @@ function _orderedSeniorityLevels(rows, key = "seniority_level") {
   return [...ordered, ...extra];
 }
 
-function _filterPanel(Inputs, data, htl) {
-  const container = htl.html`<div style="
-    background:#f8f9ff;
-    border:1px solid #dde3f5;
-    border-radius:12px;
-    padding:16px 20px;
-    margin:12px 0;
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
-    gap:10px 16px;
-  ">
-    <div style="grid-column:1/-1;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">
-      🔽 Global Filters — applied to every chart
-    </div>
-  </div>`;
-  return container;
+function _filterPanel(industryFilter, seniorityFilter, sizeFilter, riskFilter, adoptionFilter, htl) {
+  const row = htl.html`<div class="filter-row"></div>`;
+  row.classList.add("filter-row--global");
+
+  const filters = [industryFilter, seniorityFilter, sizeFilter, riskFilter, adoptionFilter];
+  filters.forEach(filter => {
+    const originalCell = filter.closest(".observablehq");
+    filter.classList.add("filter-panel__item");
+    row.append(filter);
+    if (originalCell && !originalCell.contains(row)) {
+      originalCell.style.display = "none";
+    }
+  });
+
+  requestAnimationFrame(() => {
+    row.closest(".observablehq")?.classList.add("filter-panel-cell");
+  });
+
+  return row;
 }
 
 function _multiSelectFilter(label, values, htl, compare = (a, b) => String(a).localeCompare(String(b))) {
@@ -516,22 +519,33 @@ function _chartExplanation(tabVariable, htl) {
 }
 
 // ── 9. Main chart dispatcher ───────────────────────────────────────────────────
-function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
+function _chart(activeTab, tabVariable, filtered, d3, Plot, htl, data) {
   if (!filtered.length) {
     return htl.html`<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px">
       ⚠️ No data matches the current filters. Try relaxing some selections.
     </div>`;
   }
 
+  const [minYear, maxYear] = d3.extent(data, d => d.posting_year);
+  const yearDomain = [minYear, Math.min(2025, maxYear)];
+  const salaryDomain = [0, Math.ceil((d3.max(data, d => d.salary_usd) || 0) * 1.05)];
+  const salaryChangeExtent = d3.extent(data, d => d.salary_change).map(v => Number.isFinite(v) ? v : 0);
+  const salaryChangeDomain = (() => {
+    const [minChange = 0, maxChange = 0] = salaryChangeExtent;
+    const padding = Math.max(2, (maxChange - minChange) * 0.1);
+    return [Math.floor(minChange - padding), Math.ceil(maxChange + padding)];
+  })();
+  const aiIndexDomain = [0, Math.ceil(d3.max(data, d => d.ai_index_score) || 100)];
+
   const plotLayout = {
     marginTop: 44,
     marginRight: 96,
     marginBottom: 56,
+    marginLeft: 84,
   };
 
   // ── Overview charts ────────────────────────────────────────────────────────
   if (activeTab === "📊 Overview") {
-
     if (tabVariable === "AI mention rate over time") {
       const byYear = d3.rollups(
         filtered,
@@ -541,8 +555,10 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
 
       return Plot.plot({
         title: "AI mention rate in job postings over time",
-        width: 900, height: 280,
-        x: { label: "Year", tickFormat: d3.format("d") },
+        ...plotLayout,
+        width: 900,
+        height: 280,
+        x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
         y: { label: "% of postings mentioning AI", domain: [0, 100] },
         marks: [
           Plot.areaY(byYear, { x: "year", y: "pct", fill: "#3266ad", fillOpacity: 0.1, curve: "monotone-x" }),
@@ -553,7 +569,6 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         ],
       });
     }
-
   }
 
   // ── AI Adoption charts ─────────────────────────────────────────────────────
@@ -565,13 +580,14 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         v => d3.mean(v, d => d.ai_intensity_score),
         d => d.industry
       ).map(([industry, avg]) => ({ industry, avg }));
+      const industryDomain = Array.from(new Set(filtered.map(d => d.industry))).sort();
 
       return Plot.plot({
         title: "Average AI intensity score by industry",
         width: 720, height: 320,
-        marginLeft: 120,
-        x: { label: "Avg AI intensity score", domain: [0, 1] },
-        y: { label: null },
+        marginLeft: 156,
+        x: { label: "Avg AI intensity score", domain: [0, 0.5] },
+        y: {label: null, domain: industryDomain},
         color: { scheme: "blues" },
         marks: [
           Plot.barX(byIndustry, {
@@ -593,6 +609,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const seniorityOrder = _orderedSeniorityLevels(filtered);
       return Plot.plot({
         title: "AI intensity score by seniority level",
+        ...plotLayout,
         width: 720, height: 340,
         x: { label: "Seniority level", domain: seniorityOrder },
         y: { label: "AI intensity score", domain: [0, 1] },
@@ -628,8 +645,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
         ...plotLayout,
         width: 900, height: 420,
         marginRight: 120,
-        x: { label: "Year", tickFormat: d3.format("d") },
-        y: { label: "Avg YoY salary change (%)", grid: true },
+        x: { label: "Year", tickFormat: d3.format("d"), domain: yearDomain },
+        y: { label: "Avg YoY salary change (%)", grid: true, domain: salaryChangeDomain },
         color: { legend: true, label: "Industry" },
         marks: [
           Plot.lineY(byYearIndustry, {
@@ -658,9 +675,10 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const withIndex = filtered.filter(d => d.ai_index_score && d.ai_index_score > 0);
       return Plot.plot({
         title: "Country AI index score vs. job salary",
+        ...plotLayout,
         width: 820, height: 400,
-        x: { label: "Country AI index total score" },
-        y: { label: "Salary (USD)" },
+        x: { label: "Country AI index total score", domain: aiIndexDomain },
+        y: { label: "Salary (USD)", domain: salaryDomain },
         color: { legend: true, label: "Income group" },
         marks: [
           Plot.dot(withIndex, {
@@ -680,9 +698,10 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       const sample = filtered.filter((_, i) => i % 3 === 0);
       return Plot.plot({
         title: "Salary vs. automation risk score",
+        ...plotLayout,
         width: 820, height: 400,
-        x: { label: "Automation risk score (0–1)" },
-        y: { label: "Salary (USD)" },
+        x: { label: "Automation risk score (0–1)", domain: [0, 1] },
+        y: { label: "Salary (USD)", domain: salaryDomain },
         color: { legend: true, label: "Displacement risk" },
         marks: [
           Plot.dot(sample, {
@@ -714,8 +733,8 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Average salary — seniority × company size",
         width: 820, height: 420,
-        marginLeft: 100,
-        x: { label: "Avg salary (USD)" },
+        marginLeft: 122,
+        x: { label: "Avg salary (USD)", domain: salaryDomain },
         y: { label: null, domain: sizeOrder },
         color: { legend: true, label: "Company size" },
         facet: { data: bySenioritySize, y: "seniority", label: null },
@@ -752,7 +771,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Displacement risk breakdown by industry",
         width: 800, height: 300,
-        marginLeft: 110,
+        marginLeft: 156,
         x: { label: "% of jobs", domain: [0, 100], grid: true },
         y: { label: null },
         color: {
@@ -787,9 +806,9 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Automation risk heatmap — industry × seniority",
         width: 720, height: 320,
-        marginLeft: 120,
+        marginLeft: 156,
         x: { type: "band", label: "Seniority level", domain: seniorityOrder },
-        color: { scheme: "RdYlGn", reverse: true, legend: true, label: "Avg automation risk" },
+        color: {scheme: "RdYlGn", reverse: true,domain: [-1, 1],  legend: true, label: "Avg automation risk"},
         marks: [
           Plot.cell(orderedHeatData, {
             x: "seniority", y: "industry", fill: "avg", inset: 0.5,
@@ -808,16 +827,19 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
   // ── Reskilling chart ───────────────────────────────────────────────────────
   if (activeTab === "🎓 Reskilling") {
     if (tabVariable === "% requiring reskilling by adoption stage") {
-      const byStage = d3.rollups(
-        filtered,
-        v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
-        d => d.industry_ai_adoption_stage
-      ).map(([stage, pct]) => ({ stage, pct }));
+
+      const stageOrder = ["Emerging", "Growing", "Mature"];
+      const raw = d3.rollups( filtered,v => d3.mean(v, d => d.reskilling_required ? 1 : 0) * 100,
+      d => d.industry_ai_adoption_stage);
+      const map = new Map(raw.map(([stage, pct]) => [stage, pct]));
+      const byStage = stageOrder.map(stage => ({ stage, pct: map.get(stage) ?? 0 }));
+
 
       return Plot.plot({
         title: "% of jobs requiring reskilling by AI adoption stage",
+        ...plotLayout,
         width: 540, height: 300,
-        x: { label: "AI adoption stage" },
+        x: { label: "AI adoption stage", domain: stageOrder },
         y: { label: "% requiring reskilling", domain: [0, 100] },
         color: { scheme: "purples" },
         marks: [
@@ -869,7 +891,7 @@ function _chart(activeTab, tabVariable, filtered, d3, Plot, htl) {
       return Plot.plot({
         title: "Correlation matrix — key numeric variables",
         width: 540, height: 540,
-        marginLeft: 110, marginBottom: 90,
+        marginLeft: 122, marginBottom: 90,
         x: { tickRotate: -35 },
         color: {
           type: "linear",
@@ -943,8 +965,11 @@ export default function define(runtime, observer) {
   main.variable(observer("viewof adoptionFilter")).define("viewof adoptionFilter", ["data", "htl"], _adoptionFilter);
   main.variable(observer("adoptionFilter")).define("adoptionFilter", ["Generators", "viewof adoptionFilter"], (G, _) => G.input(_));
 
-  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
-  main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
+  main.variable(observer("viewof filters")).define(
+    "viewof filters",
+    ["viewof industryFilter", "viewof seniorityFilter", "viewof sizeFilter", "viewof riskFilter", "viewof adoptionFilter", "htl"],
+    _filterPanel
+  );
 
   // Filtered data
   main.variable(observer("filtered")).define(
@@ -969,9 +994,12 @@ export default function define(runtime, observer) {
 
   // Chart output (reacts to both selectors + filtered)
   main.variable(observer()).define(
-    ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl"],
+    ["activeTab", "tabVariable", "filtered", "d3", "Plot", "htl", "data"],
     _chart
   );
+
+  main.variable(observer("viewof yearMax")).define("viewof yearMax", ["d3", "data", "htl"], _yearMax);
+  main.variable(observer("yearMax")).define("yearMax", ["Generators", "viewof yearMax"], (G, _) => G.input(_));
 
   // Navigation hint
   main.variable(observer()).define(["storyStep", "htl"], _hint);
