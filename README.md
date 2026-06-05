@@ -28,6 +28,8 @@ The experience starts on a homepage narrative about how AI is changing the work 
 - `index.js` - Re-exports the active notebook module
 - `files/` - Excel dataset files used by the notebook
 
+# Production Page:
+This is currently available at https://obs-dashboard-self.vercel.app
 ## Run Locally
 
 Use any static file server from the project directory.
