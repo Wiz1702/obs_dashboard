@@ -30,33 +30,6 @@ The experience starts on a homepage narrative about how AI is changing the work 
 
 # Production Page:
 This is currently available at https://obs-dashboard-self.vercel.app
-## Run Locally
-
-Use any static file server from the project directory.
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open:
-
-```text
-http://localhost:8000/
-```
-
-The analytics page is available at:
-
-```text
-http://localhost:8000/analytics.html
-```
-
-If dependencies are installed, the npm script can also be used:
-
-```bash
-npm run dev
-```
-
-## Data Flow
 
 The notebook loads `ai_jobs_merged_dataset.xlsx`, normalizes key fields, then filters the dataset based on the selected controls. The chart dispatcher receives the current story step, filtered rows, D3, and Observable Plot, then renders the active chart.
 
